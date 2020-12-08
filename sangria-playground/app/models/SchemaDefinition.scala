@@ -116,7 +116,6 @@ object SchemaDefinition {
         "hero",
         Character,
         arguments = EpisodeArg :: Nil,
-        deprecationReason = Some("Use `human` or `droid` fields instead"),
         resolve = (ctx) => CharacterRepo.droids.last
       ),
       Field(
