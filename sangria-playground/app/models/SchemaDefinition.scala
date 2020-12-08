@@ -9,13 +9,14 @@ import scala.concurrent.Future
  * Defines a GraphQL schema for the current project
  */
 object SchemaDefinition {
+  val characterRepo = new CharacterRepo
   /**
     * Resolves the lists of characters. These resolutions are batched and
     * cached for the duration of a query.
     */
   val characters = Fetcher.caching(
-    (ctx: CharacterRepo, ids: Seq[String]) =>
-      Future.successful(ids.flatMap(id => ctx.getHuman(id) orElse ctx.getDroid(id))))(HasId(_.id))
+    (ctx: Unit, ids: Seq[String]) =>
+      Future.successful(ids.flatMap(id => characterRepo.getHuman(id) orElse characterRepo.getDroid(id))))(HasId(_.id))
 
   val EpisodeEnum = EnumType(
     "Episode",
@@ -31,11 +32,11 @@ object SchemaDefinition {
         value = Episode.JEDI,
         description = Some("Released in 1983."))))
 
-  val Character: InterfaceType[CharacterRepo, Character] =
+  val Character: InterfaceType[Unit, Character] =
     InterfaceType(
       "Character",
       "A character in the Star Wars Trilogy",
-      () => fields[CharacterRepo, Character](
+      () => fields[Unit, Character](
         Field("id", StringType,
           Some("The id of the character."),
           resolve = _.value.id),
@@ -55,8 +56,8 @@ object SchemaDefinition {
     ObjectType(
       "Human",
       "A humanoid creature in the Star Wars universe.",
-      interfaces[CharacterRepo, Human](Character),
-      fields[CharacterRepo, Human](
+      interfaces[Unit, Human](Character),
+      fields[Unit, Human](
         Field("id", StringType,
           Some("The id of the human."),
           resolve = _.value.id),
@@ -78,25 +79,30 @@ object SchemaDefinition {
   val Droid = ObjectType(
     "Droid",
     "A mechanical creature in the Star Wars universe.",
-    interfaces[CharacterRepo, Droid](Character),
-    fields[CharacterRepo, Droid](
+    interfaces[Unit, Droid](Character),
+    fields[Unit, Droid](
       Field("id", StringType,
         Some("The id of the droid."),
         tags = ProjectionName("_id") :: Nil,
-        resolve = _.value.id),
+        resolve = _.value.id
+      ),
       Field("name", OptionType(StringType),
         Some("The name of the droid."),
-        resolve = ctx => Future.successful(ctx.value.name)),
+        resolve = ctx => Future.successful(ctx.value.name)
+      ),
       Field("friends", ListType(Character),
         Some("The friends of the droid, or an empty list if they have none."),
         complexity = Some((_, _, children) => 100 + 1.5 * children),
-        resolve = ctx => characters.deferSeqOpt(ctx.value.friends)),
+        resolve = ctx => characters.deferSeqOpt(ctx.value.friends)
+      ),
       Field("appearsIn", OptionType(ListType(OptionType(EpisodeEnum))),
         Some("Which movies they appear in."),
-        resolve = _.value.appearsIn map (e => Some(e))),
+        resolve = _.value.appearsIn map (e => Some(e))
+      ),
       Field("primaryFunction", OptionType(StringType),
         Some("The primary function of the droid."),
-        resolve = _.value.primaryFunction)
+        resolve = _.value.primaryFunction
+      )
     ))
 
   val ID = Argument("id", StringType, description = "id of the character")
@@ -105,17 +111,26 @@ object SchemaDefinition {
     description = "If omitted, returns the hero of the whole saga. If provided, returns the hero of that particular episode.")
 
   val Query = ObjectType(
-    "Query", fields[CharacterRepo, Unit](
-      Field("hero", Character,
+    "Query", fields[Unit, Unit](
+      Field(
+        "hero",
+        Character,
         arguments = EpisodeArg :: Nil,
         deprecationReason = Some("Use `human` or `droid` fields instead"),
-        resolve = (ctx) => ctx.ctx.getHero(ctx.arg(EpisodeArg))),
-      Field("human", OptionType(Human),
+        resolve = (ctx) => CharacterRepo.droids.last
+      ),
+      Field(
+        "human",
+        OptionType(Human),
         arguments = ID :: Nil,
-        resolve = ctx => ctx.ctx.getHuman(ctx arg ID)),
-      Field("droid", Droid,
+        resolve = ctx => characterRepo.getHuman(ctx arg ID)
+      ),
+      Field(
+        "droid",
+        Droid,
         arguments = ID :: Nil,
-        resolve = Projector((ctx, f) => ctx.ctx.getDroid(ctx arg ID).get))
+        resolve = Projector((ctx, f) => characterRepo.getDroid(ctx arg ID).get)
+      )
     ))
 
   val StarWarsSchema = Schema(Query)

@@ -55,15 +55,17 @@ class Application @Inject() (system: ActorSystem, config: Configuration) extends
 
       // query parsed successfully, time to execute it!
       case Success(queryAst) =>
-        Executor.execute(SchemaDefinition.StarWarsSchema, queryAst, new CharacterRepo,
+        Executor.execute(SchemaDefinition.StarWarsSchema, queryAst,
             operationName = operation,
             variables = variables getOrElse Json.obj(),
             deferredResolver = DeferredResolver.fetchers(SchemaDefinition.characters),
             exceptionHandler = exceptionHandler,
             queryReducers = List(
-              QueryReducer.rejectMaxDepth[CharacterRepo](15),
-              QueryReducer.rejectComplexQueries[CharacterRepo](4000, (_, _) => TooComplexQueryError)),
-            middleware = if (tracing) SlowLog.apolloTracing :: Nil else Nil)
+              QueryReducer.rejectMaxDepth[Unit](15),
+              QueryReducer.rejectComplexQueries[Unit](4000, (_, _) => TooComplexQueryError)
+            ),
+            middleware = if (tracing) SlowLog.apolloTracing :: Nil else Nil
+          )
           .map(Ok(_))
           .recover {
             case error: QueryAnalysisError => BadRequest(error.resolveError)
