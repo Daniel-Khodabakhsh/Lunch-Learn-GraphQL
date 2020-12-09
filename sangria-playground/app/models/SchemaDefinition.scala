@@ -15,7 +15,7 @@ object SchemaDefinition {
     * cached for the duration of a query.
     */
   val characters = Fetcher.caching(
-    (ctx: Unit, ids: Seq[String]) =>
+    (context: Unit, ids: Seq[String]) =>
       Future.successful(ids.flatMap(id => characterRepo.getHuman(id) orElse characterRepo.getDroid(id))))(HasId(_.id))
 
   val EpisodeEnum = EnumType(
@@ -46,7 +46,7 @@ object SchemaDefinition {
         Field("friends", ListType(Character),
           Some("The friends of the character, or an empty list if they have none."),
           complexity = Some((_, _, children) => 100 + 1.5 * children),
-          resolve = ctx => characters.deferSeqOpt(ctx.value.friends)),
+          resolve = context => characters.deferSeqOpt(context.value.friends)),
         Field("appearsIn", OptionType(ListType(OptionType(EpisodeEnum))),
           Some("Which movies they appear in."),
           resolve = _.value.appearsIn map (e => Some(e)))
@@ -67,7 +67,7 @@ object SchemaDefinition {
         Field("friends", ListType(Character),
           Some("The friends of the human, or an empty list if they have none."),
           complexity = Some((_, _, children) => 100 + 1.5 * children),
-          resolve = ctx => characters.deferSeqOpt(ctx.value.friends)),
+          resolve = context => characters.deferSeqOpt(context.value.friends)),
         Field("appearsIn", OptionType(ListType(OptionType(EpisodeEnum))),
           Some("Which movies they appear in."),
           resolve = _.value.appearsIn map (e => Some(e))),
@@ -88,12 +88,12 @@ object SchemaDefinition {
       ),
       Field("name", OptionType(StringType),
         Some("The name of the droid."),
-        resolve = ctx => Future.successful(ctx.value.name)
+        resolve = context => Future.successful(context.value.name)
       ),
       Field("friends", ListType(Character),
         Some("The friends of the droid, or an empty list if they have none."),
         complexity = Some((_, _, children) => 100 + 1.5 * children),
-        resolve = ctx => characters.deferSeqOpt(ctx.value.friends)
+        resolve = context => characters.deferSeqOpt(context.value.friends)
       ),
       Field("appearsIn", OptionType(ListType(OptionType(EpisodeEnum))),
         Some("Which movies they appear in."),
@@ -213,7 +213,7 @@ object SchemaDefinition {
 
   val idParameterName = "id"
 
-  val characterId = Argument(idParameterName, StringType, description = "id of the character")
+  val characterId = Argument(idParameterName, StringType, description = s"${idParameterName} of the character")
 
   val queryType = ObjectType(
     "Query", fields[Unit, Unit](
@@ -227,7 +227,7 @@ object SchemaDefinition {
             description =  "If omitted, returns the hero of the whole saga. If provided, returns the hero of that particular episode."
           )
         ),
-        resolve = (ctx) => CharacterRepo.droids.last
+        resolve = context => CharacterRepo.droids.last
       ),
       Field(
         "human",
@@ -235,7 +235,7 @@ object SchemaDefinition {
         arguments = List(
           characterId
         ),
-        resolve = ctx => characterRepo.getHuman(ctx.arg(idParameterName))
+        resolve = context => characterRepo.getHuman(context.arg(idParameterName))
       ),
       Field(
         "humans",
@@ -243,11 +243,11 @@ object SchemaDefinition {
         arguments = List(
           Argument(idParameterName, OptionInputType(StringType), description = s"${idParameterName} of the character")
         ),
-        resolve = ctx => {
-          if (ctx.argOpt(idParameterName) == None)
+        resolve = context => {
+          if (context.argOpt(idParameterName) == None)
             CharacterRepo.humans.map(Some(_))
           else
-            List(characterRepo.getHuman(ctx.arg(idParameterName)))
+            List(characterRepo.getHuman(context.arg(idParameterName)))
         }
       ),
       Field(
@@ -256,12 +256,12 @@ object SchemaDefinition {
         arguments = List(
           characterId
         ),
-        resolve = Projector((ctx, f) => characterRepo.getDroid(ctx.arg(idParameterName)).get)
+        resolve = Projector((context, f) => characterRepo.getDroid(context.arg(idParameterName)).get)
       ),
       Field(
         name = "pages",
         fieldType = ListType(pageType),
-        resolve = ctx => MoreData.pages
+        resolve = context => MoreData.pages
       ),
       Field(
         name = "flows",
@@ -269,17 +269,17 @@ object SchemaDefinition {
         arguments = List(
           Argument(idParameterName, OptionInputType(IntType), description = s"${idParameterName} of the flow")
         ),
-        resolve = ctx => {
-          if (ctx.argOpt(idParameterName) == None)
+        resolve = context => {
+          if (context.argOpt(idParameterName) == None)
             MoreData.flows.map(Some(_))
           else
-            List(MoreData.flows.find(f => f.id == ctx.argOpt[Int](idParameterName).get))
+            List(MoreData.flows.find(f => f.id == context.argOpt[Int](idParameterName).get))
         }
       ),
       Field(
         name = "currentUser",
         fieldType = OptionType(userType),
-        resolve = ctx => MoreData.users.last
+        resolve = context => MoreData.users.last
       )
     )
   )
