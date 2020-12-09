@@ -10,6 +10,10 @@ import scala.concurrent.Future
  */
 object SchemaDefinition {
   val characterRepo = new CharacterRepo
+  val idParameterName = "id"
+  val nameParameterName = "name"
+  val localisationParameterName = "localisation"
+
   /**
     * Resolves the lists of characters. These resolutions are batched and
     * cached for the duration of a query.
@@ -40,7 +44,7 @@ object SchemaDefinition {
         Field("id", StringType,
           Some("The id of the character."),
           resolve = _.value.id),
-        Field("name", OptionType(StringType),
+        Field(nameParameterName, OptionType(StringType),
           Some("The name of the character."),
           resolve = _.value.name),
         Field("friends", ListType(Character),
@@ -61,7 +65,7 @@ object SchemaDefinition {
         Field("id", StringType,
           Some("The id of the human."),
           resolve = _.value.id),
-        Field("name", OptionType(StringType),
+        Field(nameParameterName, OptionType(StringType),
           Some("The name of the human."),
           resolve = _.value.name),
         Field("friends", ListType(Character),
@@ -86,7 +90,7 @@ object SchemaDefinition {
         tags = ProjectionName("_id") :: Nil,
         resolve = _.value.id
       ),
-      Field("name", OptionType(StringType),
+      Field(nameParameterName, OptionType(StringType),
         Some("The name of the droid."),
         resolve = context => Future.successful(context.value.name)
       ),
@@ -116,7 +120,7 @@ object SchemaDefinition {
         resolve = _.value.id
       ),
       Field(
-        name = "name",
+        name = nameParameterName,
         fieldType = StringType,
         description = Some("Flow node's name."),
         resolve = _.value.name
@@ -147,7 +151,7 @@ object SchemaDefinition {
         resolve = _.value.id
       ),
       Field(
-        name = "name",
+        name = nameParameterName,
         fieldType = StringType,
         description = Some("Flow's name."),
         resolve = _.value.name
@@ -172,7 +176,7 @@ object SchemaDefinition {
         resolve = _.value.id
       ),
       Field(
-        name = "name",
+        name = nameParameterName,
         fieldType = StringType,
         description = Some("Username."),
         resolve = _.value.name
@@ -210,8 +214,6 @@ object SchemaDefinition {
       )
     )
   )
-
-  val idParameterName = "id"
 
   val characterId = Argument(idParameterName, StringType, description = s"${idParameterName} of the character")
 
@@ -284,5 +286,34 @@ object SchemaDefinition {
     )
   )
 
-  val StarWarsSchema = Schema(queryType)
+  val mutationType = ObjectType(
+    name = "Mutation",
+    fields = fields[Unit, Unit](
+      Field(
+        name = "addUser",
+        fieldType = userType,
+        arguments = List(
+          Argument(nameParameterName, StringType, description = "Username."),
+          Argument(localisationParameterName, StringType, description = "Username.", defaultValue = "en-CA")
+        ),
+        resolve = context => {
+          val newUser = User(
+            id = MoreData.users.map(user => user.id).max + 1,
+            name = context.arg(nameParameterName),
+            localisation = context.arg(localisationParameterName),
+            theme = "dark"
+          )
+
+          MoreData.users = MoreData.users :+ newUser
+
+          newUser
+        }
+      )
+    )
+  )
+
+  val StarWarsSchema = Schema(
+    query = queryType,
+    mutation = Some(mutationType)
+  )
 }
