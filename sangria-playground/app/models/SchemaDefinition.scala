@@ -105,10 +105,10 @@ object SchemaDefinition {
       )
     ))
 
-  val flowNodeType = ObjectType(
+  val flowNodeType: ObjectType[Unit, FlowNode] = ObjectType(
     name = "FlowNode",
     description = "Node within a flow.",
-    fields = fields[Unit, FlowNode](
+    fieldsFn = () => fields[Unit, FlowNode](
       Field(
         name = "id",
         fieldType = IntType,
@@ -129,9 +129,9 @@ object SchemaDefinition {
       ),
       Field(
         name = "connectedTo",
-        fieldType = ListType(IntType),
+        fieldType = ListType(flowNodeType),
         description = Some("Nodes connected to by this node."),
-        resolve = _.value.connectedTo.map(connection => connection.id)
+        resolve = _.value.connectedTo
       )
     )
   )
