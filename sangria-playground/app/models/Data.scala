@@ -28,9 +28,6 @@ case class Droid(
 class CharacterRepo {
   import models.CharacterRepo._
 
-  def getHero(episode: Option[Episode.Value]) =
-    episode flatMap (_ => getHuman("1000")) getOrElse droids.last
-
   def getHuman(id: String): Option[Human] = humans.find(c => c.id == id)
 
   def getDroid(id: String): Option[Droid] = droids.find(c => c.id == id)
