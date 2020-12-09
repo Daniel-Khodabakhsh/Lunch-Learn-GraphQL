@@ -110,27 +110,37 @@ object SchemaDefinition {
   val EpisodeArg = Argument("episode", OptionInputType(EpisodeEnum),
     description = "If omitted, returns the hero of the whole saga. If provided, returns the hero of that particular episode.")
 
+  val optionalId = Argument("id", OptionInputType(StringType), description = "id of the character")
+
   val Query = ObjectType(
     "Query", fields[Unit, Unit](
       Field(
         "hero",
         Character,
-        arguments = EpisodeArg :: Nil,
+        arguments = List(EpisodeArg),
         resolve = (ctx) => CharacterRepo.droids.last
       ),
       Field(
         "human",
         OptionType(Human),
-        arguments = ID :: Nil,
-        resolve = ctx => characterRepo.getHuman(ctx arg ID)
+        arguments = List(ID),
+        resolve = ctx => characterRepo.getHuman(ctx.arg(ID))
+      ),
+      Field(
+        "humans",
+        ListType(OptionType(Human)),
+        arguments = List(optionalId),
+        resolve = ctx =>
+          if (ctx.argOpt(optionalId) == None) CharacterRepo.humans.map(Some(_)) else List(characterRepo.getHuman(ctx.arg(optionalId).get))
       ),
       Field(
         "droid",
         Droid,
-        arguments = ID :: Nil,
-        resolve = Projector((ctx, f) => characterRepo.getDroid(ctx arg ID).get)
+        arguments = List(ID),
+        resolve = Projector((ctx, f) => characterRepo.getDroid(ctx.arg(ID)).get)
       )
-    ))
+    )
+  )
 
   val StarWarsSchema = Schema(Query)
 }
