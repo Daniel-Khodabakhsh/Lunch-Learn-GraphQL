@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Page 1</title>
+		<style>
+			#output>div {
+				margin: 20px;
+				display: inline-block;
+			}
+
+			#output>div>div {
+				padding: 5px 10px;
+				background-color: rgb(207, 209, 213);
+			}
+
+			#output>div>div:nth-child(1) {
+				color: aliceblue;
+				background-color: rgb(69, 85, 113);
+				border-radius: 10px 10px 0 0;
+			}
+
+			#output>div>div:last-child {
+				border-radius: 0 0 10px 10px;
+			}
+		</style>
+		<script>
+			const applicationJsonContentType = 'application/json';
+
+			document.addEventListener('DOMContentLoaded', () => {
+				const outputDiv = document.getElementById('output');
+				document.querySelector('body>button').addEventListener('click', async (event) => {
+					const currentFlowId = 1;
+
+					const result = await fetch('/graphql', {
+						method: 'POST',
+						headers: {
+							'Content-Type': applicationJsonContentType,
+							Accept: applicationJsonContentType
+						},
+						body: JSON.stringify({
+							query: `
+								query {
+									currentUser {
+										name
+									}
+									flows(id: ${currentFlowId}) {
+										name
+										nodes {
+											id
+											name
+											connectedTo {
+												id
+											}
+										}
+									}
+								}
+							`
+						})
+					}).then(response => response.json())
+
+					outputDiv.innerHTML = '';
+
+					outputDiv.innerText = `
+						hello there ${result.data.currentUser.name}!
+						the name of the flow you're interested in is: '${result.data.flows[0].name}'
+					`;
+
+					result.data.flows[0].nodes.forEach(node => {
+						const nodeDiv = document.createElement('div');
+						
+						nodeDiv.innerHTML = `
+							<div>${node.name}</div>
+							<div>ID = ${node.id}</div>
+							${node.connectedTo.length != 0 ? `
+								<div>connected to: ${node.connectedTo.map(connection => connection.id).join(', ')}</div>
+							` : ''}
+						`;
+
+						outputDiv.appendChild(nodeDiv);
+					});
+				});
+			})
+		</script>
+	</head>
+	<body>
+		<button>Push me!</button>
+		<div id=output></div>
+	</body>
+</html>
